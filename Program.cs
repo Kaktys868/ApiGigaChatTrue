@@ -1,4 +1,5 @@
-﻿using APIGigaChat_True.Models.Response;
+﻿using APIGigaChat_True.Models;
+using APIGigaChat_True.Models.Response;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -17,25 +18,48 @@ namespace APIGigaChat_True
         {
             string Token = await GetToken(ClientId, AuthorizationKey);
 
-            if(Token == null)
+            if (Token == null)
             {
                 Console.WriteLine("Не удалось получить токен");
                 return;
             }
+
+            List<Request.Message> messageHistory = new List<Request.Message>();
+
             while (true)
             {
                 Console.Write("Сообщение: ");
-
                 string Message = Console.ReadLine();
 
-                ResponseMessage Answer = await GetAnswer(Token, Message);
-                Console.WriteLine("Ответ: " + Answer.choices[0].message.content);
+                messageHistory.Add(new Request.Message()
+                {
+                    role = "user",
+                    content = Message
+                });
+
+                ResponseMessage Answer = await GetAnswer(Token, messageHistory);
+
+                if (Answer != null && Answer.choices != null && Answer.choices.Count > 0)
+                {
+                    string assistantResponse = Answer.choices[0].message.content;
+                    Console.WriteLine("Ответ: " + assistantResponse);
+
+                    messageHistory.Add(new Request.Message()
+                    {
+                        role = "assistant",
+                        content = assistantResponse
+                    });
+                }
+                else
+                {
+                    Console.WriteLine("Ошибка получения ответа");
+                }
             }
         }
         public static async Task<string> GetToken(string rqUID, string bearer)
         {
             string ReturnToken = null;
-            string Url = "https://ngw.devices.sberbank.ru:9WU3/api/v2/oauth";
+            string Url = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth";
 
             using (HttpClientHandler Handler = new HttpClientHandler())
             {
@@ -67,14 +91,15 @@ namespace APIGigaChat_True
             }
             return ReturnToken;
         }
-        public static async Task<ResponseMessage> GetAnswer(string token, string message)
+        
+        public static async Task<ResponseMessage> GetAnswer(string token, List<Request.Message> messageHistory)
         {
             ResponseMessage responseMessage = null;
             string Url = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions";
 
             using (HttpClientHandler Handler = new HttpClientHandler())
             {
-                Handler.ServerCertificateCustomValidationCallback = (message, cert, chain, sslPolicyErrors) => true;
+                Handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
 
                 using (HttpClient Client = new HttpClient(Handler))
                 {
@@ -83,19 +108,12 @@ namespace APIGigaChat_True
                     Request.Headers.Add("Accept", "application/json");
                     Request.Headers.Add("Authorization", $"Bearer {token}");
 
-                    Models.Request DataRequest = new Models.Request()
+                    Request DataRequest = new Request()
                     {
                         model = "GigaChat",
                         stream = false,
                         repetition_penalty = 1,
-                        messages = new List<Models.Request.Message>
-                {
-                    new Models.Request.Message()
-                    {
-                        role = "user",
-                        content = message
-                    }
-                }
+                        messages = messageHistory
                     };
 
                     string JsonContent = JsonConvert.SerializeObject(DataRequest);
