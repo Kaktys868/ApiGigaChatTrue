@@ -16,6 +16,21 @@ namespace APIGigaChat_True
         static async Task Main(string[] args)
         {
             string Token = await GetToken(ClientId, AuthorizationKey);
+
+            if(Token == null)
+            {
+                Console.WriteLine("Не удалось получить токен");
+                return;
+            }
+            while (true)
+            {
+                Console.Write("Сообщение: ");
+
+                string Message = Console.ReadLine();
+
+                ResponseMessage Answer = await GetAnswer(Token, Message);
+                Console.WriteLine("Ответ: " + Answer.choices[0].message.content);
+            }
         }
         public static async Task<string> GetToken(string rqUID, string bearer)
         {
@@ -68,14 +83,14 @@ namespace APIGigaChat_True
                     Request.Headers.Add("Accept", "application/json");
                     Request.Headers.Add("Authorization", $"Bearer {token}");
 
-                    Request DataRequest = new Request()
+                    Models.Request DataRequest = new Models.Request()
                     {
                         model = "GigaChat",
                         stream = false,
                         repetition_penalty = 1,
-                        messages = new List<Request.Message>
+                        messages = new List<Models.Request.Message>
                 {
-                    new Request.Message()
+                    new Models.Request.Message()
                     {
                         role = "user",
                         content = message
