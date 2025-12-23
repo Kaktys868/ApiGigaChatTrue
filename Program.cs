@@ -49,7 +49,6 @@ namespace APIGigaChat_True
                     }
                 }
             }
-
             return ReturnToken;
         }
     }
